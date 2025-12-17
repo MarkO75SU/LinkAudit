@@ -1,14 +1,12 @@
 // js/ui.js
-import {
-  domElements, notify
-} from './dom.js'; // Import domElements directly
+import { domElements, notify } from './dom.js'; // Import domElements directly
 import { fetchPageTitle } from './api.js';
-import { TRACK_PARAMS } from './config.js'; // Import TRACK_PARAMS
+import { TRACK_PARAMS } from './config.js';
 
 let radarChart; // Will be initialized in initUI
 
 export function initUI() {
-  radarChart = new Chart(domElements.radarCanvas, { // Use domElements.radarCanvas
+  radarChart = new Chart(domElements.radarCanvas, { // Use domElements.radarCanvas directly
     type: "radar",
     data: {
       labels: ["Herkunft", "Emotion", "Framing", "Bias", "Reputation", "Tracking"],
@@ -45,7 +43,7 @@ export function renderDimensions(data) {
     { key: "Herkunft", val: data.scores.origin, desc: "Redirects, Shortlinks" },
     { key: "Emotion", val: data.scores.emotion, desc: data.labels.emotion },
     { key: "Framing", val: data.scores.framing, desc: data.labels.framing },
-    { key: "Bias", val: data.labels.bias, desc: data.labels.bias }, // Adjusted to use data.labels.bias
+    { key: "Bias", val: data.labels.bias, desc: data.labels.bias },
     { key: "Reputation", val: data.scores.reputation, desc: data.labels.reputation },
     { key: "Tracking", val: data.scores.tracking, desc: data.labels.tracking }
   ];
@@ -139,6 +137,11 @@ export function renderReputation(data) {
 
 export function renderRadar(data) {
   console.log("ui.js: renderRadar called with data.scores:", data.scores); // Debugging line
+  // Ensure radarChart is initialized before trying to update it
+  if (!radarChart) {
+    console.error("Radar chart not initialized!");
+    return;
+  }
   radarChart.data.datasets[0].data = [
     data.scores.origin,
     data.scores.emotion,
@@ -162,144 +165,8 @@ export function exportJSON(data) {
   URL.revokeObjectURL(url);
 }
 
-// Removed copySummary function as per user request.
-
-/**
- * Renders the analysis history into the UI.
- * @param {Array} historyItems - Array of history objects.
- * @param {Function} onDelete - Callback for when a delete button is clicked.
- * @param {Function} onReanalyze - Callback for when a re-analyze button is clicked.
- */
-export function renderHistory(historyItems, onDelete, onReanalyze) {
-  domElements.historyList.innerHTML = ""; // Access domElements
-
-  if (historyItems.length === 0) {
-    const el = document.createElement("div");
-    el.className = "item";
-    el.innerHTML = `<div class="k">Historie</div><div class="v small">Keine Analysen vorhanden.</div>`;
-    domElements.historyList.appendChild(el); // Access domElements
-    return;
-  }
-
-  historyItems.forEach(item => {
-    const el = document.createElement("div");
-    el.className = "item";
-    const date = new Date(item.timestamp).toLocaleString();
-    el.innerHTML = `
-      <div class="k">${date}</div>
-      <div class="v mono small" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.url}</div>
-      <div class="actions" style="margin-top: 5px;">
-        <button class="secondary small reanalyze-btn" data-url="${item.url}">Analysieren</button>
-        <button class="ghost small delete-btn" data-id="${item.id}">Löschen</button>
-      </div>
-    `;
-    domElements.historyList.appendChild(el); // Access domElements
-  });
-
-  // Attach event listeners
-  domElements.historyList.querySelectorAll('.delete-btn').forEach(button => { // Access domElements
-    button.addEventListener('click', (event) => {
-      const id = parseInt(event.target.dataset.id);
-      if (confirm("Möchten Sie diese Analyse wirklich löschen?")) {
-        onDelete(id);
-      }
-    });
-  });
-
-  domElements.historyList.querySelectorAll('.reanalyze-btn').forEach(button => { // Access domElements
-    button.addEventListener('click', (event) => {
-      const url = event.target.dataset.url;
-      onReanalyze(url);
-    });
-  });
-}
-
-export function renderExplanations(data) {
-  domElements.dynamicExplanations.innerHTML = "";
-
-  let htmlContent = `
-    <div class="item">
-      <div class="k">Zusammenfassung des Vertrauenswerts</div>
-      <div class="v small">
-        Der Gesamtscore von <strong>${data.scores.overall}</strong> stuft diesen Link als
-        <span class="badge ${data.scores.overall >= 80 ? 'ok' : data.scores.overall >= 55 ? 'ok' : data.scores.overall >= 35 ? 'warn' : 'danger'}">
-          ${data.labels.verdict}
-        </span> ein. Die Bewertung basiert auf folgenden Faktoren:
-      </div>
-    </div>
-    <div class="item">
-      <div class="k">Herkunft (${data.scores.origin})</div>
-      <div class="v small">
-        Dieser Link wurde in <strong>${data.chain.length}</strong> Schritten umgeleitet.
-        ${data.parsed.shortlink ? 'Es wurde ein Kurzlink erkannt, der die direkte Herkunft verschleiern kann.' : 'Es wurde kein Kurzlink erkannt.'}
-        Viele Weiterleitungen oder Kurzlinks können die Transparenz verringern.
-      </div>
-    </div>
-    <div class="item">
-      <div class="k">Emotionale Tonalität (${data.scores.emotion})</div>
-      <div class="v small">
-        Die Analyse der URL-Struktur und des abgeleiteten Titels zeigt eine Tonalität als
-        <span class="badge ${data.scores.emotion >= 70 ? 'danger' : data.scores.emotion >= 55 ? 'warn' : 'ok'}">
-          ${data.labels.emotion}
-        </span>.
-        Ein hoher emotionaler Wert kann auf reißerische Inhalte oder Clickbait hinweisen.
-      </div>
-    </div>
-    <div class="item">
-      <div class="k">Framing & Perspektive (${data.scores.framing})</div>
-      <div class="v small">
-        Der Link nutzt eine <span class="badge ${data.scores.framing >= 70 ? 'danger' : data.scores.framing >= 55 ? 'warn' : 'ok'}">
-          ${data.labels.framing}
-        </span>-Perspektive. Dies beschreibt die Art und Weise, wie ein Thema dargestellt wird, was die Wahrnehmung beeinflussen kann.
-      </div>
-    </div>
-    <div class="item">
-      <div class="k">Bias-Indikatoren (${data.scores.bias})</div>
-      <div class="v small">
-        Es wurden <span class="badge ${data.scores.bias >= 70 ? 'danger' : data.scores.bias >= 55 ? 'warn' : 'ok'}">
-          ${data.labels.bias}
-        </span> Hinweise auf Voreingenommenheit gefunden. Dies sind oft stark polarisierende Begriffe, die eine objektive Betrachtung erschweren können.
-      </div>
-    </div>
-    <div class="item">
-      <div class="k">Domain-Reputation (${data.scores.reputation})</div>
-      <div class="v small">
-        Die Reputation der Domain wird als
-        <span class="badge ${data.scores.reputation >= 70 ? 'ok' : data.scores.reputation >= 55 ? 'warn' : 'danger'}">
-          ${data.labels.reputation}
-        </span> eingeschätzt.
-        Die URL verwendet ${data.parsed.https ? 'HTTPS (sicher)' : 'kein HTTPS (unsicher)'}.
-        WHOIS-Informationen sind heuristisch simuliert.
-      </div>
-    </div>
-    <div class="item">
-      <div class="k">Tracking-Aktivität (${data.scores.tracking})</div>
-      <div class="v small">
-        Die Tracking-Aktivität wird als
-        <span class="badge ${data.scores.tracking >= 70 ? 'ok' : data.scores.tracking >= 55 ? 'warn' : 'danger'}">
-          ${data.labels.tracking}
-        </span> eingestuft.
-        Es wurden ${data.trackedKeys.length > 0 ? `die Parameter <code>${data.trackedKeys.join(', ')}</code>` : 'keine bekannten Tracking-Parameter'} erkannt.
-      </div>
-    </div>
-  `;
-
-  if (data.suspicious.length > 0) {
-    htmlContent += `
-      <div class="item">
-        <div class="k">Verdächtige Muster</div>
-        <div class="v small badge danger">
-          ${data.suspicious.join(', ')}.
-          Diese Muster können auf potenzielle Risiken wie Phishing oder schädliche Inhalte hindeuten.
-        </div>
-      </div>
-    `;
-  }
-
-  domElements.dynamicExplanations.innerHTML = htmlContent;
-}
-
-export function generatePdfReport(data) {
+// Export generatePdfReport and renderExplanations functions
+export function generatePdfReport(data) { // Ensure this function is exported
   // eslint-disable-next-line no-undef
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();

@@ -47,6 +47,7 @@
           <div class="k">Export</div>
           <div class="v actions">
             <button id="exportJson" class="secondary">JSON</button>
+            <!-- copySummary button removed -->
             <button id="exportPdfBtn" class="secondary">PDF</button> <!-- New PDF Export Button -->
           </div>
         </div>
@@ -131,20 +132,7 @@
     </div>
   </div>
 
-  <!-- History Section -->
-  <div class="panel" style="margin-top:16px">
-    <h2>Analyse-Historie</h2>
-    <div id="historyList" class="list">
-      <!-- History items will be populated by JS -->
-      <div class="item">
-        <div class="k">Letzte Analyse:</div>
-        <div class="v mono small">Lade Historie...</div>
-      </div>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <button id="clearHistoryBtn" class="ghost">Historie löschen</button>
-    </div>
-  </div>
+  <!-- History Section Removed -->
 
   <div class="footer">LinkAudit Mockup · v0.1 · Lokal, deterministische Heuristiken</div>
 </div>
@@ -155,7 +143,7 @@
 <script type="module" src="js/api.js"></script>
 <script type="module" src="js/heuristics.js"></script>
 <script type="module" src="js/ui.js"></script>
-<script type="module" src="js/history.js"></script> <!-- New history module -->
+<!-- js/history.js import removed -->
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

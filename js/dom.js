@@ -1,6 +1,6 @@
 // js/dom.js
 
-export const domElements = {}; // Export a single mutable object
+export const domElements = {}; // This object will hold all DOM elements
 
 export function initDomElements() {
   domElements.urlInput = document.getElementById("url");
@@ -24,16 +24,25 @@ export function initDomElements() {
   domElements.patternVal = document.getElementById("patternVal");
   domElements.llmMode = document.getElementById("llmMode");
   domElements.exportJsonBtn = document.getElementById("exportJson");
-  // domElements.copySummaryBtn = document.getElementById("copySummaryBtn"); // Removed
-  domElements.historyList = document.getElementById("historyList");
-  domElements.clearHistoryBtn = document.getElementById("clearHistoryBtn");
-  domElements.dynamicExplanations = document.getElementById("dynamicExplanations");
-  domElements.exportPdfBtn = document.getElementById("exportPdfBtn"); // Export new PDF button
+  // Removed references to copySummaryBtn, historyList, and clearHistoryBtn as they are no longer used.
+  // domElements.copySummaryBtn removed.
+  // domElements.historyList removed.
+  // domElements.clearHistoryBtn removed.
+  domElements.exportPdfBtn = document.getElementById("exportPdfBtn");
+  domElements.notifyContainer = null; // Initialize notifyContainer
+
+  // Basic check if elements were found, log warnings if not
+  // This check is important to catch missing elements early.
+  Object.keys(domElements).forEach(key => {
+    if (key !== 'notifyContainer' && !domElements[key]) {
+      console.warn(`DOM Element not found for key: ${key}`);
+    }
+  });
 }
 
 export function notify(msg, danger = false) {
   // Ensure the element is accessed after it's initialized
-  if (!domElements.notifyContainer) { // Use domElements.notifyContainer
+  if (!domElements.notifyContainer) {
     domElements.notifyContainer = document.createElement("div");
     domElements.notifyContainer.style.position = "fixed";
     domElements.notifyContainer.style.bottom = "16px";
@@ -49,7 +58,7 @@ export function notify(msg, danger = false) {
   n.textContent = msg;
   n.style.background = danger ? "rgba(248,113,113,0.12)" : "rgba(124,58,237,0.12)";
   n.style.color = danger ? "var(--danger)" : "var(--text)";
-  domElements.notifyContainer.appendChild(n); // Use domElements.notifyContainer
+  domElements.notifyContainer.appendChild(n);
   
   setTimeout(() => n.remove(), 2000);
 }

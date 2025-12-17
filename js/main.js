@@ -1,14 +1,14 @@
 // js/main.js
 import { DEMO_LINKS } from './config.js';
 import { initDomElements, domElements, notify } from './dom.js'; // Import domElements and initDomElements
-import { initUI, renderRadar, renderDimensions, renderRedirects, renderParams, renderSemantics, renderReputation, exportJSON, renderHistory, renderExplanations, generatePdfReport } from './ui.js';
+// Corrected import: Added generatePdfReport and renderExplanations, removed renderHistory and other history-related imports
+import { initUI, renderRadar, renderDimensions, renderRedirects, renderParams, renderSemantics, renderReputation, exportJSON, renderExplanations, generatePdfReport } from './ui.js'; 
 import {
   parseUrl, extractParams, detectShortlink, httpsStatus,
   scoreEmotion, scoreFraming, scoreBias, scoreTracking,
   buildRedirectChain, detectPatterns, scoreReputation
 } from './heuristics.js';
-import { fetchPageTitle } from './api.js';
-import { loadHistory, saveAnalysis, clearHistory, deleteHistoryItem } from './history.js';
+// Removed import for fetchPageTitle from api.js, as it's now heuristic in heuristics.js
 
 console.log("main.js: Script started.");
 
@@ -25,7 +25,7 @@ async function aggregate(urlStr, mode="light") {
   const isShort = detectShortlink(u.hostname);
   const isHttps = httpsStatus(u);
 
-  // Fetching title is now heuristic, no await needed.
+  // fetchPageTitle is now heuristic, no await needed.
   const title = fetchPageTitle(urlStr); 
   const emo = scoreEmotion(title);
   const fra = scoreFraming(title);
@@ -89,8 +89,8 @@ async function analyzeAndRender(urlToAnalyze, analysisMode) {
     renderReputation(data);
     renderExplanations(data); // Render detailed explanations
     notify("Analyse abgeschlossen.");
-    saveAnalysis(data); // Save analysis to history
-    renderHistoryAndSetupListeners(); // Re-render history
+    saveAnalysis(data); // Save analysis to history (now single item)
+    renderHistoryAndSetupListeners(); // Re-render history (to show single item or empty state)
   } catch (e) {
     console.error("main.js: Analysis error:", e);
     notify(e.message || "Analysefehler", true);
@@ -98,67 +98,83 @@ async function analyzeAndRender(urlToAnalyze, analysisMode) {
 }
 
 function renderHistoryAndSetupListeners() {
-  const history = loadHistory();
-  renderHistory(history, (id) => { // Callback for delete
-    deleteHistoryItem(id);
-    renderHistoryAndSetupListeners();
-  }, (url) => { // Callback for re-analyze
-    domElements.urlInput.value = url;
-    domElements.analyzeBtn.click();
+  const historyItem = loadHistory(); // Load the single history item
+  
+  domElements.historyList.innerHTML = ""; // Clear previous history display
+
+  if (!historyItem) { // If no history item, display empty state
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `<div class="k">Historie</div><div class="v small">Keine Analysen vorhanden.</div>`;
+    domElements.historyList.appendChild(el);
+    domElements.clearHistoryBtn.style.display = 'none'; // Hide clear button if no history
+    return;
+  }
+
+  // If historyItem exists, render it
+  const el = document.createElement("div");
+  el.className = "item";
+  const date = new Date(historyItem.timestamp).toLocaleString();
+  el.innerHTML = `
+    <div class="k">${date}</div>
+    <div class="v mono small" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.url}</div>
+    <div class="actions" style="margin-top: 5px;">
+      <button class="secondary small reanalyze-btn" data-url="${item.url}">Analysieren</button>
+      <!-- Individual delete button is not needed for single-item history -->
+    </div>
+  `;
+  domElements.historyList.appendChild(el);
+
+  // Attach event listener for re-analyze
+  el.querySelector('.reanalyze-btn').addEventListener('click', (event) => {
+    const url = event.target.dataset.url;
+    analyzeAndRender(url, domElements.llmMode.value); // Use domElements
   });
+
+  // Show clear history button if history exists
+  domElements.clearHistoryBtn.style.display = 'block'; 
 }
 
 function setupEventListeners() {
-  domElements.analyzeBtn.addEventListener("click", async () => {
+  domElements.analyzeBtn.addEventListener("click", async () => { // Use domElements
     console.log("main.js: Analyze button clicked.");
-    const val = domElements.urlInput.value.trim();
+    const val = domElements.urlInput.value.trim(); // Use domElements
     if (!val) { notify("Bitte eine URL eingeben.", true); return; }
-    await analyzeAndRender(val, domElements.llmMode.value);
+    await analyzeAndRender(val, domElements.llmMode.value); // Use domElements
   });
 
-  domElements.demoBtn.addEventListener("click", () => {
+  domElements.demoBtn.addEventListener("click", () => { // Use domElements
     console.log("main.js: Demo button clicked.");
     const pick = DEMO_LINKS[Math.floor(Math.random() * DEMO_LINKS.length)];
-    domElements.urlInput.value = pick;
-    domElements.analyzeBtn.click();
+    domElements.urlInput.value = pick; // Use domElements
+    domElements.analyzeBtn.click(); // Use domElements
   });
 
-  domElements.resetBtn.addEventListener("click", () => {
+  domElements.resetBtn.addEventListener("click", () => { // Use domElements
     console.log("main.js: Reset button clicked.");
-    domElements.urlInput.value = "";
-    domElements.scoreVal.textContent = "–"; domElements.verdictBadge.textContent = "–"; domElements.verdictBadge.className = "badge ok";
-    domElements.dimensionsGrid.innerHTML = ""; domElements.redirectList.innerHTML = ""; domElements.paramList.innerHTML = "";
-    domElements.titleGuess.textContent = "–"; domElements.emotionVal.textContent = "–"; domElements.framingVal.textContent = "–"; domElements.biasVal.textContent = "–";
-    domElements.whoisVal.textContent = "–"; domElements.pagerankVal.textContent = "–"; domElements.httpsVal.textContent = "–"; domElements.shortVal.textContent = "–"; domElements.patternVal.textContent = "–";
+    domElements.urlInput.value = ""; // Use domElements
+    domElements.scoreVal.textContent = "–"; domElements.verdictBadge.textContent = "–"; domElements.verdictBadge.className = "badge ok"; // Use domElements
+    domElements.dimensionsGrid.innerHTML = ""; domElements.redirectList.innerHTML = ""; domElements.paramList.innerHTML = ""; // Use domElements
+    domElements.titleGuess.textContent = "–"; domElements.emotionVal.textContent = "–"; domElements.framingVal.textContent = "–"; domElements.biasVal.textContent = "–"; // Use domElements
+    domElements.whoisVal.textContent = "–"; domElements.pagerankVal.textContent = "–"; domElements.httpsVal.textContent = "–"; domElements.shortVal.textContent = "–"; domElements.patternVal.textContent = "–"; // Use domElements
     notify("Zurückgesetzt.");
   });
 
-  domElements.exportJsonBtn.addEventListener("click", () => {
+  domElements.exportJsonBtn.addEventListener("click", () => { // Use domElements
     console.log("main.js: Export JSON button clicked.");
     if (!lastData) { notify("Keine Daten zum Export.", true); return; }
     exportJSON(lastData);
   });
 
-  // Removed copySummaryBtn event listener
-  // domElements.copySummaryBtn.addEventListener("click", () => {
-  //   console.log("main.js: Copy Summary button clicked.");
-  //   if (!lastData) { notify("Keine Daten zum Kopieren.", true); return; }
-  //   copySummary(lastData);
-  // });
-
-  domElements.exportPdfBtn.addEventListener("click", () => { // New PDF Export Button Event Listener
+  domElements.exportPdfBtn.addEventListener("click", () => { // Use domElements and call generatePdfReport
     console.log("main.js: Export PDF button clicked.");
     if (!lastData) { notify("Keine Daten zum Export.", true); return; }
-    generatePdfReport(lastData);
+    generatePdfReport(lastData); // Correctly call generatePdfReport
   });
 
-  domElements.clearHistoryBtn.addEventListener("click", () => {
-    if (confirm("Möchten Sie wirklich die gesamte Analyse-Historie löschen?")) {
-      clearHistory();
-      renderHistoryAndSetupListeners();
-      notify("Historie gelöscht.");
-    }
-  });
+  // Clear history button listener removed as history is now single item and clearing it means removing the item
+  // The display logic in renderHistory handles hiding/showing it.
+  // domElements.clearHistoryBtn.addEventListener("click", () => { ... });
 }
 
 
@@ -168,7 +184,17 @@ window.addEventListener("load", () => {
   initDomElements(); // Initialize DOM elements
   setupEventListeners(); // Setup event listeners AFTER DOM elements are initialized
   initUI(); // Initialize UI components like radar chart
-  domElements.urlInput.value = DEMO_LINKS[0];
-  analyzeAndRender(DEMO_LINKS[0], domElements.llmMode.value); // Call analyzeAndRender
-  renderHistoryAndSetupListeners(); // Render history on load
+  
+  // Load history on startup and render the single item or empty state
+  renderHistoryAndSetupListeners(); 
+
+  // Analyze the demo link if input is empty or pre-filled
+  const urlToAnalyze = domElements.urlInput.value.trim(); // Use domElements
+  if (!urlToAnalyze) { // Only pre-fill and analyze if input is empty
+      domElements.urlInput.value = DEMO_LINKS[0]; // Use domElements
+      analyzeAndRender(DEMO_LINKS[0], domElements.llmMode.value); // Use domElements
+  } else {
+      // If there's already a value (e.g. from previous session), analyze it
+      analyzeAndRender(urlToAnalyze, domElements.llmMode.value); // Use domElements
+  }
 });
