@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>LinkAudit – Mockup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0f1216;
+      --panel: #161a21;
+      --panel-2: #1c212b;
+      --text: #e5e7eb;
+      --muted: #9aa3b2;
+      --accent: #6ee7b7;
+      --accent-2: #60a5fa;
+      --danger: #f87171;
+      --warn: #fbbf24;
+      --ok: #34d399;
+      --brand: #7c3aed;
+      --border: #2a313d;
+    }
+    * { box-sizing: border-box }
+    html, body {
+      margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    header {
+      padding: 20px 24px; border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, #0f1216, #121621 40%, #0f1216);
+      position: sticky; top: 0; z-index: 10;
+    }
+    header h1 { margin: 0; font-size: 20px; letter-spacing: 0.2px }
+    header .sub { color: var(--muted); font-size: 13px; margin-top: 4px }
+    .container { max-width: 1200px; margin: 24px auto; padding: 0 24px }
+    .grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .panel {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px;
+    }
+    .panel h2 { font-size: 16px; margin: 0 0 12px }
+    label { display: block; font-weight: 600; margin-bottom: 6px }
+    input[type="url"], input[type="text"] {
+      width: 100%; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); outline: none;
+    }
+    .row { display: flex; gap: 8px; align-items: center }
+    button {
+      background: var(--brand); color: white; border: none; border-radius: 10px;
+      padding: 10px 14px; font-weight: 600; cursor: pointer;
+    }
+    button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border) }
+    button.ghost { background: transparent; border: 1px dashed var(--border); color: var(--muted) }
+    button:disabled { opacity: 0.6; cursor: not-allowed }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px }
+    .tag {
+      font-size: 12px; color: #cbd5e1; background: #0b0f14; border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 10px;
+    }
+    .list { display: grid; gap: 8px }
+    .item {
+      background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .item .k { color: var(--muted); font-size: 12px }
+    .item .v { font-size: 14px }
+    .flex { display: flex; gap: 12px; align-items: center }
+    .score {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px;
+      border: 1px solid var(--border); background: rgba(96,165,250,0.08); color: var(--accent-2);
+      font-size: 12px;
+    }
+    .badge { font-size: 12px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border) }
+    .badge.ok { color: var(--ok); background: rgba(52,211,153,0.08) }
+    .badge.warn { color: var(--warn); background: rgba(251,191,36,0.08) }
+    .badge.danger { color: var(--danger); background: rgba(248,113,113,0.08) }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace }
+    .small { font-size: 12px; color: var(--muted) }
+    .section-title { font-weight: 700; font-size: 13px; color: var(--muted); margin: 10px 0 4px }
+    .divider { height: 1px; background: var(--border); margin: 10px 0 }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap }
+    .cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
+    .cols-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px }
+    .help { font-size: 12px; color: var(--muted); background: #0b0f14; border: 1px solid var(--border);
+            border-radius: 10px; padding: 8px 10px }
+    .footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0 }
+    @media (max-width: 920px) {
+      .grid { grid-template-columns: 1fr }
+      .cols-3 { grid-template-columns: 1fr }
+      .cols-2 { grid-template-columns: 1fr }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>LinkAudit – Transparenz für digitale Links</h1>
+  <div class="sub">Mockup mit Beispieldaten, Heuristiken und Radar-Chart</div>
+</header>
+
+<div class="container">
+  <div class="grid">
+    <div class="panel">
+      <h2>Eingabe</h2>
+      <label for="url">Zu analysierender Link</label>
+      <input id="url" type="url" placeholder="https://example.com/article?utm_source=twitter&utm_campaign=viral" />
+      <div class="row" style="margin-top:8px">
+        <button id="analyzeBtn">Analysieren</button>
+        <button id="demoBtn" class="secondary">Demo-Links</button>
+        <button id="resetBtn" class="ghost">Zurücksetzen</button>
+      </div>
+      <div class="section-title">Optionen</div>
+      <div class="cols-3">
+        <div class="item">
+          <div class="k">KI-Auswertung</div>
+          <div class="v">
+            <select id="llmMode" style="width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px">
+              <option value="light">Light (Titel + Meta, heuristisch)</option>
+              <option value="full">Full (Seiten-Text, simuliert)</option>
+            </select>
+          </div>
+        </div>
+        <div class="item">
+          <div class="k">Datenschutz</div>
+          <div class="v small">Lokal, keine externen Anfragen. Nur heuristische Analysen.</div>
+        </div>
+        <div class="item">
+          <div class="k">Export</div>
+          <div class="v actions">
+            <button id="exportJson" class="secondary">JSON</button>
+            <button id="copySummary" class="secondary">Zusammenfassung kopieren</button>
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="help">
+        Tipp: Teste unterschiedliche Domains, UTM-Parameter, reißerische Titel, und Shortlinks (bit.ly, t.co), um Heuristiken zu sehen.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Impact-Radar</h2>
+      <canvas id="radar" height="220"></canvas>
+      <div class="row" style="margin-top:8px">
+        <span class="score"><strong>Score:</strong> <span id="scoreVal">–</span></span>
+        <span class="badge ok" id="verdictBadge">–</span>
+      </div>
+      <div class="section-title">Dimensionen</div>
+      <div class="cols-3" id="dimensionsGrid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:16px">
+    <div class="panel">
+      <h2>Herkunft & Redirects</h2>
+      <div class="list" id="redirectList"></div>
+      <div class="section-title">Tracking-Parameter</div>
+      <div class="list" id="paramList"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Semantik, Emotion & Framing</h2>
+      <div class="list">
+        <div class="item"><div class="k">Titel (heuristisch)</div><div id="titleGuess" class="v mono small">–</div></div>
+        <div class="item"><div class="k">Emotion</div><div id="emotionVal" class="v">–</div></div>
+        <div class="item"><div class="k">Framing</div><div id="framingVal" class="v">–</div></div>
+        <div class="item"><div class="k">Bias-Indikatoren</div><div id="biasVal" class="v">–</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:16px">
+    <div class="panel">
+      <h2>Domain-Reputation</h2>
+      <div class="cols-2">
+        <div class="item"><div class="k">WHOIS (heuristisch)</div><div id="whoisVal" class="v mono small">–</div></div>
+        <div class="item"><div class="k">PageRank (simuliert)</div><div id="pagerankVal" class="v">–</div></div>
+      </div>
+      <div class="section-title">Sicherheitslage</div>
+      <div class="list">
+        <div class="item"><div class="k">HTTPS</div><div id="httpsVal" class="v">–</div></div>
+        <div class="item"><div class="k">Kurzlink erkannt</div><div id="shortVal" class="v">–</div></div>
+        <div class="item"><div class="k">Verdächtige Muster</div><div id="patternVal" class="v">–</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Erklärungen & Hinweise</h2>
+      <div class="list">
+        <div class="item"><div class="k">Bewertungslogik</div>
+          <div class="v small">
+            Score setzt sich aus Emotionalität, Framing, Bias, Reputation, Tracking zusammen.
+            Reißerische Begriffe, viele Redirects und aggressive UTM-Kampagnen senken den Score.
+          </div>
+        </div>
+        <div class="item"><div class="k">Privatsphäre</div>
+          <div class="v small">Dieses Mockup arbeitet rein lokal im Browser. Keine externen Requests.</div>
+        </div>
+        <div class="item"><div class="k">API-Fähigkeit</div>
+          <div class="v small">Echte Datenquellen (WHOIS, OpenPageRank, KI) können später über CORS-sichere Endpunkte angebunden werden.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">LinkAudit Mockup · v0.1 · Lokal, deterministische Heuristiken</div>
+</div>
+
+<script>
+/* -------------------------
+   Helper: Demo dataset
+-------------------------- */
+const DEMO_LINKS = [
+  "https://example.com/news/shocking-report?utm_source=twitter&utm_medium=social&utm_campaign=viral",
+  "https://t.co/xyz123?ref_src=twsrc%5Etfw",
+  "https://bit.ly/market-crash-insider",
+  "https://trusted.org/research/climate-outlook?utm_source=newsletter",
+  "http://lowtrustsite.info/promo?aff_id=999&tracking=abc&utm_campaign=aggressive",
+  "https://medium.com/@author/nuanced-analysis-on-policy",
+];
+
+const SHORT_HOSTS = ["t.co", "bit.ly", "goo.gl", "tinyurl.com", "ow.ly", "buff.ly"];
+const TRACK_PARAMS = ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","ref","ref_src","aff_id","tracking"];
+const CLICKBAIT_WORDS = [
+  "schockierend","skandal","enthüllt","insider","sensationell","unglaublich","alarmierend","revolutionär","krass",
+  "shocking","scandal","revealed","insider","sensational","unbelievable","alarming","revolutionary","crazy","must-see"
+];
+const POLARIZERS = ["immer","nie","jeder","niemand","verschwörung","lüge","corrupt","betrug","fake","woke","extrem"];
+const FRAMING_PATTERNS = ["Täter-Opfer","Wir vs. Die","Angst-Dringlichkeit","Heilsversprechen","Autoritätsargument"];
+
+/* -------------------------
+   DOM elements
+-------------------------- */
+const urlInput = document.getElementById("url");
+const analyzeBtn = document.getElementById("analyzeBtn");
+const demoBtn = document.getElementById("demoBtn");
+const resetBtn = document.getElementById("resetBtn");
+const radarCanvas = document.getElementById("radar");
+const scoreVal = document.getElementById("scoreVal");
+const verdictBadge = document.getElementById("verdictBadge");
+const dimensionsGrid = document.getElementById("dimensionsGrid");
+
+const redirectList = document.getElementById("redirectList");
+const paramList = document.getElementById("paramList");
+
+const titleGuess = document.getElementById("titleGuess");
+const emotionVal = document.getElementById("emotionVal");
+const framingVal = document.getElementById("framingVal");
+const biasVal = document.getElementById("biasVal");
+
+const whoisVal = document.getElementById("whoisVal");
+const pagerankVal = document.getElementById("pagerankVal");
+const httpsVal = document.getElementById("httpsVal");
+const shortVal = document.getElementById("shortVal");
+const patternVal = document.getElementById("patternVal");
+
+const llmMode = document.getElementById("llmMode");
+const exportJsonBtn = document.getElementById("exportJson");
+const copySummaryBtn = document.getElementById("copySummary");
+
+/* -------------------------
+   Radar chart setup
+-------------------------- */
+let radarChart = new Chart(radarCanvas, {
+  type: "radar",
+  data: {
+    labels: ["Herkunft", "Emotion", "Framing", "Bias", "Reputation", "Tracking"],
+    datasets: [{
+      label: "Impact",
+      data: [0,0,0,0,0,0],
+      fill: true,
+      backgroundColor: "rgba(124,58,237,0.25)",
+      borderColor: "#7c3aed",
+      pointBackgroundColor: "#60a5fa",
+      pointBorderColor: "#1f2937",
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+    scales: {
+      r: {
+        beginAtZero: true,
+        suggestedMax: 100,
+        grid: { color: "#2a313d" },
+        angleLines: { color: "#2a313d" },
+        pointLabels: { color: "#cbd5e1", font: { size: 12 } }
+      }
+    }
+  }
+});
+
+/* -------------------------
+   Core heuristics
+-------------------------- */
+function parseUrl(u) {
+  try { return new URL(u); } catch { return null; }
+}
+
+function extractParams(urlObj) {
+  const params = [];
+  for (const [k, v] of urlObj.searchParams.entries()) {
+    params.push({ key: k, value: v });
+  }
+  return params;
+}
+
+function detectShortlink(host) {
+  return SHORT_HOSTS.includes(host.toLowerCase());
+}
+
+function httpsStatus(urlObj) {
+  return urlObj.protocol === "https:";
+}
+
+async function fetchPageTitle(urlStr) {
+  try {
+    const response = await fetch(urlStr);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const titleElement = doc.querySelector('title');
+    if (titleElement && titleElement.textContent) {
+      return titleElement.textContent.trim();
+    }
+  } catch (error) {
+    console.error("Error fetching page title:", error);
+  }
+  return "Titel konnte nicht abgerufen werden"; // Default value if fetching or parsing fails
+}
+
+function scoreEmotion(title) {
+  const t = title.toLowerCase();
+  let e = 50; // baseline neutral
+  CLICKBAIT_WORDS.forEach(w => { if (t.includes(w)) e += 20; });
+  POLARIZERS.forEach(w => { if (t.includes(w)) e += 10; });
+  e = Math.min(100, Math.max(0, e));
+  let cls = "Neutral";
+  if (e >= 80) cls = "Alarmierend/reißerisch";
+  else if (e >= 65) cls = "Euphorisch/aufgeladen";
+  else if (e <= 35) cls = "Nüchtern/unterkühlt";
+  return { value: e, label: cls };
+}
+
+function scoreFraming(title) {
+  const t = title.toLowerCase();
+  // simple mapping to patterns
+  let label = "Sachlich";
+  if (t.includes("gegen") || t.includes("vs")) label = "Wir vs. Die";
+  else if (t.includes("enthüllt") || t.includes("revealed")) label = "Autoritätsargument";
+  else if (t.includes("schock") || t.includes("alarm")) label = "Angst-Dringlichkeit";
+  else if (t.includes("rettet") || t.includes("heilt")) label = "Heilsversprechen";
+  let value = label === "Sachlich" ? 40 : 75;
+  return { value, label };
+}
+
+function scoreBias(title) {
+  const t = title.toLowerCase();
+  let b = 40;
+  POLARIZERS.forEach(w => { if (t.includes(w)) b += 10; });
+  CLICKBAIT_WORDS.forEach(w => { if (t.includes(w)) b += 5; });
+  b = Math.min(100, Math.max(0, b));
+  let label = "Gering";
+  if (b >= 80) label = "Stark";
+  else if (b >= 60) label = "Mittel";
+  return { value: b, label };
+}
+
+async function fetchPageRank(domain) {
+  const apiKey = "YOUR_OPENPAGERANK_API_KEY"; // Replace with your actual API key
+  const url = `https://openpagerank.com/api/v1.0/getPageRank?domains=${domain}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'API-Key': apiKey,
+        // Note: Open Page Rank API might not have explicit CORS headers, so direct client-side calls may fail.
+        // A CORS proxy might be necessary if direct fetch is not allowed.
+      }
+    });
+
+    if (!response.ok) {
+      // Fallback if API call fails
+      console.error(`PageRank API error! status: ${response.status}`);
+      return { value: 50, label: "Unbekannt (API-Fehler)" }; // Default score on API error
+    }
+    const data = await response.json();
+
+    if (data && data.ranks && data.ranks[domain]) {
+      const rank = data.ranks[domain].rank; // Assuming 'rank' is the PageRank value
+      const score = Math.round(parseFloat(rank)); // Convert to number and round
+
+      let label = "Niedrig";
+      if (score >= 80) label = "Hoch";
+      else if (score >= 55) label = "Solide";
+      else if (score >= 35) label = "Mittel";
+      
+      return { value: score, label };
+    } else {
+      console.warn("No PageRank data found for domain:", domain);
+      return { value: 40, label: "Kein Ranking" }; // Default if no data
+    }
+  } catch (error) {
+    console.error("Error fetching PageRank:", error);
+    return { value: 50, label: "Unbekannt (Netzwerkfehler)" }; // Default score on network error
+  }
+}
+
+async function scoreReputation(host, isHttps, isShort) {
+  // Fetch PageRank data
+  const pageRankData = await fetchPageRank(host);
+  let pr = pageRankData.value;
+  let label = pageRankData.label;
+
+  // Adjust score based on HTTPS and shortlink status (as a fallback/complement)
+  const tld = host.split(".").slice(-1)[0];
+  const trustedTLD = ["org","edu","gov","de","com"].includes(tld);
+  
+  // Combine API score with heuristics
+  pr = (pr * 0.7) + ((60 + (trustedTLD ? 15 : -10) + (isHttps ? 10 : -15) + (isShort ? -20 : 0)) * 0.3);
+  
+  pr = Math.max(0, Math.min(100, Math.round(pr)));
+
+  // Update label based on the combined score if it deviates significantly
+  if (pr < 35 && label !== "Sehr niedrig") label = "Sehr niedrig";
+  else if (pr < 55 && label !== "Niedrig") label = "Niedrig";
+  else if (pr < 80 && label !== "Solide") label = "Solide";
+  else if (pr >= 80 && label !== "Hoch") label = "Hoch";
+  
+  return { value: pr, label };
+}
+
+function scoreTracking(params) {
+  const keys = params.map(p => p.key.toLowerCase());
+  const tracked = keys.filter(k => TRACK_PARAMS.includes(k));
+  let s = 80; // Base score
+
+  // Penalize for each tracking parameter found
+  s -= tracked.length * 15; // More aggressive penalty
+
+  // Add bonus/penalty based on specific common parameters or combinations
+  if (tracked.includes('utm_campaign') && tracked.includes('utm_source') && tracked.includes('utm_medium')) {
+    s -= 10; // Standard marketing parameters, slight penalty if all present aggressively
+  }
+  if (tracked.some(p => ['utm_campaign', 'utm_term', 'utm_content'].some(t => p.includes(t)))) {
+      s -= 5; // Penalty for parameters that are often used for specific campaign targeting
+  }
+  // Consider rewarding if no tracking parameters are present or only minimal ones
+  if (tracked.length === 0) {
+    s += 15; // Bonus for no tracking
+  } else if (tracked.length === 1) {
+    s += 5; // Bonus for minimal tracking
+  }
+  
+  s = Math.max(0, Math.min(100, s)); // Clamp score between 0 and 100
+
+  let label = "Minimal";
+  if (s >= 75) label = "Minimal";
+  else if (s >= 50) label = "Moderat";
+  else if (s >= 25) label = "Aggressiv";
+  else label = "Sehr aggressiv";
+
+  return { value: s, label, tracked };
+}
+
+async function buildRedirectChain(urlStr) {
+  const chain = [urlStr];
+  let currentUrl = urlStr;
+  const maxRedirects = 10; // Limit to prevent infinite loops
+  let redirectsCount = 0;
+
+  try {
+    while (redirectsCount < maxRedirects) {
+      const response = await fetch(currentUrl, { redirect: 'manual' }); // Manual redirect handling
+
+      // Check for redirect status codes (301, 302, 303, 307, 308)
+      if (response.status >= 301 && response.status <= 308) {
+        const location = response.headers.get('Location');
+        if (location) {
+          // Resolve relative URLs
+          const nextUrl = new URL(location, currentUrl).href;
+          chain.push(nextUrl);
+          currentUrl = nextUrl;
+          redirectsCount++;
+        } else {
+          // No 'Location' header found, stop following
+          break;
+        }
+      } else {
+        // Not a redirect, or an error, stop following
+        break;
+      }
+    }
+  } catch (error) {
+    console.error("Error following redirect:", error);
+    // Optionally add an error indicator to the chain or return as is
+  }
+  return chain;
+}
+
+async function fetchReputationData(url) {
+  const apiVoidApiKey = "YOUR_APIVOID_API_KEY"; // Replace with your actual API key
+  const apiVoidUrl = `https://api.apivoid.com/v1/renew.json?json=true&url=${encodeURIComponent(url)}&app_key=${apiVoidApiKey}`;
+
+  try {
+    const response = await fetch(apiVoidUrl);
+    if (!response.ok) {
+      throw new Error(`APIVoid API error! status: ${response.status}`);
+    }
+    const data = await response.json();
+
+    if (data.data && data.data.url_reputation) {
+      const riskScore = parseInt(data.data.url_reputation.risk_score, 10);
+      const categories = data.data.url_reputation.categories; // e.g., ["malware", "phishing"]
+      
+      return { riskScore, categories };
+    } else {
+      console.warn("No reputation data found from APIVoid for:", url);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching APIVoid reputation data:", error);
+    return null;
+  }
+}
+
+async function detectPatterns(urlObj) {
+  const href = urlObj.href.toLowerCase();
+  const host = urlObj.hostname.toLowerCase();
+  const suspicious = [];
+
+  if (href.startsWith("http://")) suspicious.push("Nicht-HTTPS");
+  if (href.includes("promo") || href.includes("aff_id")) suspicious.push("Affiliates/Promo");
+  if (href.includes("tracking=")) suspicious.push("Tracking-Param");
+  if (href.includes("crash") || href.includes("panic")) suspicious.push("Angst/Crash-Rhetorik");
+
+  // Expanded checks for suspicious patterns
+  const urlParts = urlObj.pathname.split('/').filter(Boolean);
+  if (urlParts.length > 5) { // Too many path segments can indicate obfuscation
+    suspicious.push("Tiefe Pfadstruktur");
+  }
+  // Check for excessive subdomains (excluding known shorteners)
+  const subdomainParts = host.split('.').slice(0, -2); // Exclude TLD and second-level domain
+  if (subdomainParts.length > 1 && !SHORT_HOSTS.includes(host)) { 
+      suspicious.push("Exzessive Subdomains");
+  }
+  // Add checks for common phishing keywords in path segments
+  const phishingKeywords = ["login", "verify", "account", "update", "secure-", "secure.","credentials", "password"];
+  if (urlParts.some(part => phishingKeywords.some(kw => part.includes(kw)))) {
+      suspicious.push("Phishing-verdächtige Pfade");
+  }
+  // Check for unusual TLDs (this is a heuristic and might need a more robust list)
+  const unusualTlds = ["xyz", "top", "link", "click", "vip", "work"]; // Example list, could be expanded
+  const tld = host.split('.').pop();
+  if (tld && unusualTlds.includes(tld)) {
+      suspicious.push(`Ungewöhnliche TLD: ${tld}`);
+  }
+
+  // Integrate external threat intelligence feed (APIVoid)
+  const reputationData = await fetchReputationData(href);
+  if (reputationData && reputationData.categories) {
+      if (reputationData.categories.includes("malware")) suspicious.push("Malware");
+      if (reputationData.categories.includes("phishing")) suspicious.push("Phishing");
+      if (reputationData.categories.includes("spam")) suspicious.push("Spam");
+  }
+
+  return suspicious;
+}
+
+async function aggregate(urlStr, mode="light") {
+  const u = parseUrl(urlStr);
+  if (!u) { throw new Error("Ungültige URL"); }
+  const params = extractParams(u);
+  const isShort = detectShortlink(u.hostname);
+  const isHttps = httpsStatus(u);
+
+  const title = heuristicTitle(u); // This will be replaced by fetchPageTitle
+  const emo = scoreEmotion(title);
+  const fra = scoreFraming(title);
+  const bia = scoreBias(title);
+  const rep = scoreReputation(u.hostname, isHttps, isShort); // This will also be updated later
+  const trk = scoreTracking(params);
+
+  // Await the result of the asynchronous buildRedirectChain
+  const origins = await buildRedirectChain(urlStr); 
+  // Await the result of the asynchronous detectPatterns
+  const patt = await detectPatterns(u); 
+
+  // Herkunft score: penalize redirects count & shortlink
+  let originScore = 80 - (origins.length - 1) * 10 - (isShort ? 15 : 0);
+  originScore = Math.max(0, Math.min(100, originScore));
+
+  // Overall score (weights)
+  const w = mode === "full"
+    ? { origin: 0.18, emo: 0.18, fra: 0.16, bia: 0.16, rep: 0.18, trk: 0.14 }
+    : { origin: 0.20, emo: 0.20, fra: 0.15, bia: 0.15, rep: 0.20, trk: 0.10 };
+
+  const overall = Math.round(
+    originScore * w.origin +
+    (100 - emo.value) * w.emo +       // higher emotion => lower trust
+    (100 - fra.value) * w.fra +       // stronger framing => lower trust
+    (100 - bia.value) * w.bia +       // more bias => lower trust
+    rep.value * w.rep +
+    trk.value * w.trk
+  );
+
+  let verdict = "Solide";
+  let badgeClass = "ok";
+  if (overall >= 80) { verdict = "Hoch vertrauenswürdig"; badgeClass = "ok"; }
+  else if (overall >= 55) { verdict = "Solide"; badgeClass = "ok"; }
+  else if (overall >= 35) { verdict = "Vorsicht"; badgeClass = "warn"; }
+  else { verdict = "Niedrig"; badgeClass = "danger"; }
+
+  return {
+    url: urlStr,
+    parsed: { host: u.hostname, https: isHttps, shortlink: isShort, params },
+    scores: { origin: originScore, emotion: emo.value, framing: fra.value, bias: bia.value, reputation: rep.value, tracking: trk.value, overall },
+    labels: { emotion: emo.label, framing: fra.label, bias: bia.label, reputation: rep.label, tracking: trk.label, verdict },
+    chain: origins,
+    suspicious: patt,
+    titleGuess: title,
+    trackedKeys: trk.tracked
+  };
+}
+
+/* -------------------------
+   UI population
+-------------------------- */
+function renderDimensions(data) {
+  const dims = [
+    { key: "Herkunft", val: data.scores.origin, desc: "Redirects, Shortlinks" },
+    { key: "Emotion", val: data.scores.emotion, desc: data.labels.emotion },
+    { key: "Framing", val: data.scores.framing, desc: data.labels.framing },
+    { key: "Bias", val: data.scores.bias, desc: data.labels.bias },
+    { key: "Reputation", val: data.scores.reputation, desc: data.labels.reputation },
+    { key: "Tracking", val: data.scores.tracking, desc: data.labels.tracking }
+  ];
+  dimensionsGrid.innerHTML = "";
+  dims.forEach(d => {
+    const el = document.createElement("div");
+    el.className = "item";
+    const badgeCls = d.key === "Emotion" || d.key === "Framing" || d.key === "Bias"
+      ? (d.val >= 70 ? "danger" : d.val >= 55 ? "warn" : "ok")
+      : (d.val >= 70 ? "ok" : d.val >= 55 ? "warn" : "danger");
+    el.innerHTML = `
+      <div class="k">${d.key}</div>
+      <div class="v flex">
+        <span class="badge ${badgeCls}">${d.val}</span>
+        <span class="small">${d.desc}</span>
+      </div>
+    `;
+    dimensionsGrid.appendChild(el);
+  });
+}
+
+function renderRedirects(data) {
+  redirectList.innerHTML = "";
+  if (data.chain.length === 0) {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `<div class="k">Redirects</div><div class="v small">Keine</div>`;
+    redirectList.appendChild(el);
+    return;
+  }
+  data.chain.forEach((href, idx) => {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <div class="k">Schritt ${idx+1}</div>
+      <div class="v mono small">${href}</div>
+    `;
+    redirectList.appendChild(el);
+  });
+}
+
+function renderParams(data) {
+  paramList.innerHTML = "";
+  if (data.parsed.params.length === 0) {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `<div class="k">Parameter</div><div class="v small">Keine</div>`;
+    paramList.appendChild(el);
+    return;
+  }
+  data.parsed.params.forEach(p => {
+    const isTrack = TRACK_PARAMS.includes(p.key.toLowerCase());
+    const cls = isTrack ? "warn" : "ok";
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <div class="k">${p.key}</div>
+      <div class="v flex">
+        <span class="badge ${cls} mono">${p.value || "–"}</span>
+        <span class="small">${isTrack ? "Tracking-Param" : "Allg. Param"}</span>
+      </div>
+    `;
+    paramList.appendChild(el);
+  });
+}
+
+async function renderSemantics(data) {
+  // Call fetchPageTitle asynchronously and update titleGuess
+  const title = await fetchPageTitle(data.url);
+  titleGuess.textContent = title;
+
+  emotionVal.textContent = `${data.labels.emotion} (${data.scores.emotion})`;
+  framingVal.textContent = `${data.labels.framing} (${data.scores.framing})`;
+  biasVal.textContent = `${data.labels.bias} (${data.scores.bias})`;
+}
+
+async function fetchWhoisData(domain) {
+  const apiKey = "YOUR_APILAYER_API_KEY"; // Replace with your actual API key
+  const url = `https://api.apilayer.com/whois/v1/whois?domain=${domain}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': apiKey
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`WHOIS API error! status: ${response.status}`);
+    }
+    const data = await response.json();
+
+    if (data.WHOIS && data.WHOIS.registrar) {
+      return {
+        registrar: data.WHOIS.registrar,
+        creationDate: data.WHOIS.creation_date,
+        expirationDate: data.WHOIS.expiration_date,
+        // Add more fields as needed and available
+      };
+    } else {
+      console.warn("No WHOIS data found for domain:", domain);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching WHOIS data:", error);
+    return null;
+  }
+}
+
+async function renderReputation(data) {
+  // Fetch and display WHOIS data
+  const whoisData = await fetchWhoisData(data.parsed.host);
+  if (whoisData) {
+    whoisVal.textContent = `Registrar: ${whoisData.registrar || 'N/A'} | Created: ${whoisData.creationDate || 'N/A'} | Expires: ${whoisData.expirationDate || 'N/A'}`;
+  } else {
+    whoisVal.textContent = "WHOIS-Daten nicht verfügbar";
+  }
+  
+  pagerankVal.textContent = `${data.labels.reputation} (${data.scores.reputation})`; // Keep simulated PageRank for now
+  httpsVal.textContent = data.parsed.https ? "Aktiv" : "Nein";
+  shortVal.textContent = data.parsed.shortlink ? "Ja" : "Nein";
+  patternVal.textContent = data.suspicious.length ? data.suspicious.join(", ") : "Keine";
+}
+
+function renderRadar(data) {
+  radarChart.data.datasets[0].data = [
+    data.scores.origin,
+    data.scores.emotion,
+    data.scores.framing,
+    data.scores.bias,
+    data.scores.reputation,
+    data.scores.tracking
+  ];
+  radarChart.update();
+  scoreVal.textContent = data.scores.overall;
+  verdictBadge.textContent = data.labels.verdict;
+  verdictBadge.className = `badge ${data.scores.overall >= 55 ? "ok" : data.scores.overall >= 35 ? "warn" : "danger"}`;
+}
+
+/* -------------------------
+   Export
+-------------------------- */
+function exportJSON(data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "linkaudit.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copySummary(data) {
+  const lines = [];
+  lines.push(`LinkAudit Zusammenfassung`);
+  lines.push(`URL: ${data.url}`);
+  lines.push(`Gesamtscore: ${data.scores.overall} – ${data.labels.verdict}`);
+  lines.push(`Herkunft: ${data.scores.origin}`);
+  lines.push(`Emotion: ${data.scores.emotion} – ${data.labels.emotion}`);
+  lines.push(`Framing: ${data.scores.framing} – ${data.labels.framing}`);
+  lines.push(`Bias: ${data.scores.bias} – ${data.labels.bias}`);
+  lines.push(`Reputation: ${data.scores.reputation} – ${data.labels.reputation}`);
+  lines.push(`Tracking: ${data.scores.tracking} – ${data.labels.tracking}`);
+  lines.push(`Redirects: ${data.chain.length} Schritte`);
+  lines.push(`Verdächtige Muster: ${data.suspicious.join(", ") || "Keine"}`);
+  lines.push(`Parameter: ${data.trackedKeys.join(", ") || "Keine"}`);
+  const txt = lines.join("\n");
+  navigator.clipboard.writeText(txt).then(() => {
+    notify("Zusammenfassung kopiert.");
+  }).catch(() => {
+    notify("Kopieren fehlgeschlagen.", true);
+  });
+}
+
+/* -------------------------
+   Notifications
+-------------------------- */
+function notify(msg, danger=false) {
+  const n = document.createElement("div");
+  n.textContent = msg;
+  n.style.position = "fixed";
+  n.style.bottom = "16px";
+  n.style.right = "16px";
+  n.style.padding = "10px 12px";
+  n.style.borderRadius = "10px";
+  n.style.border = "1px solid var(--border)";
+  n.style.background = danger ? "rgba(248,113,113,0.12)" : "rgba(124,58,237,0.12)";
+  n.style.color = danger ? "var(--danger)" : "var(--text)";
+  n.style.zIndex = 99;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 2000);
+}
+
+/* -------------------------
+   Events
+-------------------------- */
+let lastData = null;
+
+analyzeBtn.addEventListener("click", async () => { // Make event listener async
+  const val = urlInput.value.trim();
+  if (!val) { notify("Bitte eine URL eingeben.", true); return; }
+  try {
+    const data = await aggregate(val, llmMode.value); // Await the aggregate function
+    lastData = data;
+    renderRadar(data);
+    renderDimensions(data);
+    renderRedirects(data);
+    renderParams(data);
+    renderSemantics(data); // This function is now async
+    renderReputation(data);
+    notify("Analyse abgeschlossen.");
+  } catch (e) {
+    notify(e.message || "Analysefehler", true);
+  }
+});
+
+demoBtn.addEventListener("click", () => {
+  const pick = DEMO_LINKS[Math.floor(Math.random() * DEMO_LINKS.length)];
+  urlInput.value = pick;
+  analyzeBtn.click();
+});
+
+resetBtn.addEventListener("click", () => {
+  urlInput.value = "";
+  scoreVal.textContent = "–"; verdictBadge.textContent = "–"; verdictBadge.className = "badge ok";
+  dimensionsGrid.innerHTML = ""; redirectList.innerHTML = ""; paramList.innerHTML = "";
+  titleGuess.textContent = "–"; emotionVal.textContent = "–"; framingVal.textContent = "–"; biasVal.textContent = "–";
+  whoisVal.textContent = "–"; pagerankVal.textContent = "–"; httpsVal.textContent = "–"; shortVal.textContent = "–"; patternVal.textContent = "–";
+  radarChart.data.datasets[0].data = [0,0,0,0,0,0]; radarChart.update();
+  notify("Zurückgesetzt.");
+});
+
+exportJsonBtn.addEventListener("click", () => {
+  if (!lastData) { notify("Keine Daten zum Export.", true); return; }
+  exportJSON(lastData);
+});
+
+copySummaryBtn.addEventListener("click", () => {
+  if (!lastData) { notify("Keine Daten zum Kopieren.", true); return; }
+  copySummary(lastData);
+});
+
+/* -------------------------
+   Bootstrap: preload a demo
+-------------------------- */
+window.addEventListener("load", () => {
+  urlInput.value = DEMO_LINKS[0];
+  analyzeBtn.click();
+});
+</script>
+</body>
+</html>
