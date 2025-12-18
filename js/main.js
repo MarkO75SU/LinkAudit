@@ -1,14 +1,13 @@
 // js/main.js
 import { DEMO_LINKS } from './config.js';
 import { initDomElements, domElements, notify } from './dom.js'; // Import domElements and initDomElements
-// Corrected import: Added generatePdfReport and renderExplanations, removed renderHistory and other history-related imports
 import { initUI, renderRadar, renderDimensions, renderRedirects, renderParams, renderSemantics, renderReputation, exportJSON, renderExplanations, generatePdfReport } from './ui.js'; 
+import { fetchPageTitle } from './api.js'; // Corrected import for fetchPageTitle
 import {
   parseUrl, extractParams, detectShortlink, httpsStatus,
   scoreEmotion, scoreFraming, scoreBias, scoreTracking,
   buildRedirectChain, detectPatterns, scoreReputation
 } from './heuristics.js';
-// Removed import for fetchPageTitle from api.js, as it's now heuristic in heuristics.js
 
 console.log("main.js: Script started.");
 
@@ -25,44 +24,37 @@ async function aggregate(urlStr, mode="light") {
   const isShort = detectShortlink(u.hostname);
   const isHttps = httpsStatus(u);
 
-  // fetchPageTitle is now heuristic, no await needed.
   const title = fetchPageTitle(urlStr); 
   const emo = scoreEmotion(title);
   const fra = scoreFraming(title);
   const bia = scoreBias(title);
-  // scoreReputation is now heuristic, no await needed.
   const rep = scoreReputation(u.hostname, isHttps, isShort); 
   const trk = scoreTracking(params);
 
-  // buildRedirectChain is async
   const origins = await buildRedirectChain(u); 
-  // detectPatterns is now heuristic, no await needed.
   const patt = detectPatterns(u); 
 
-  // Herkunft score: penalize redirects count & shortlink
   let originScore = 80 - (origins.length - 1) * 10 - (isShort ? 15 : 0);
   originScore = Math.max(0, Math.min(100, originScore));
 
-  // Overall score (weights)
   const w = mode === "full"
     ? { origin: 0.18, emo: 0.18, fra: 0.16, bia: 0.16, rep: 0.18, trk: 0.14 }
     : { origin: 0.20, emo: 0.20, fra: 0.15, bia: 0.15, rep: 0.20, trk: 0.10 };
 
   const overall = Math.round(
     originScore * w.origin +
-    (100 - emo.value) * w.emo +       // higher emotion => lower trust
-    (100 - fra.value) * w.fra +       // stronger framing => lower trust
-    (100 - bia.value) * w.bia +       // more bias => lower trust
+    (100 - emo.value) * w.emo +
+    (100 - fra.value) * w.fra +
+    (100 - bia.value) * w.bia +
     rep.value * w.rep + 
     trk.value * w.trk
   );
 
   let verdict = "Solide";
-  let badgeClass = "ok";
-  if (overall >= 80) { verdict = "Hoch vertrauenswürdig"; badgeClass = "ok"; }
-  else if (overall >= 55) { verdict = "Solide"; badgeClass = "ok"; }
-  else if (overall >= 35) { verdict = "Vorsicht"; badgeClass = "warn"; }
-  else { verdict = "Niedrig"; badgeClass = "danger"; }
+  if (overall >= 80) { verdict = "Hoch vertrauenswürdig"; }
+  else if (overall >= 55) { verdict = "Solide"; }
+  else if (overall >= 35) { verdict = "Vorsicht"; }
+  else { verdict = "Niedrig"; }
 
   return {
     url: urlStr,
@@ -80,121 +72,183 @@ async function analyzeAndRender(urlToAnalyze, analysisMode) {
   try {
     const data = await aggregate(urlToAnalyze, analysisMode);
     lastData = data;
-    console.log("main.js: Data for rendering:", data); // Debugging line
+    console.log("main.js: Data for rendering:", data);
     renderRadar(data);
     renderDimensions(data);
     renderRedirects(data);
     renderParams(data);
     renderSemantics(data);
     renderReputation(data);
-    renderExplanations(data); // Render detailed explanations
+    renderExplanations(data);
     notify("Analyse abgeschlossen.");
-    saveAnalysis(data); // Save analysis to history (now single item)
-    renderHistoryAndSetupListeners(); // Re-render history (to show single item or empty state)
+    saveAnalysis(data);
+    renderHistoryAndSetupListeners();
   } catch (e) {
     console.error("main.js: Analysis error:", e);
     notify(e.message || "Analysefehler", true);
   }
 }
 
-function renderHistoryAndSetupListeners() {
-  const historyItem = loadHistory(); // Load the single history item
-  
-  domElements.historyList.innerHTML = ""; // Clear previous history display
+function deleteHistoryItem(timestamp) {
+  let history = JSON.parse(localStorage.getItem('analysisHistory')) || [];
+  history = history.filter(item => item.timestamp !== timestamp);
+  localStorage.setItem('analysisHistory', JSON.stringify(history));
+  renderHistoryAndSetupListeners();
+  notify("Eintrag gelöscht.");
+}
 
-  if (!historyItem) { // If no history item, display empty state
+function renderHistoryAndSetupListeners() {
+  const history = JSON.parse(localStorage.getItem('analysisHistory')) || []; 
+  
+  if (!domElements.historyList) return;
+
+  domElements.historyList.innerHTML = ""; 
+
+  if (history.length === 0) {
     const el = document.createElement("div");
     el.className = "item";
     el.innerHTML = `<div class="k">Historie</div><div class="v small">Keine Analysen vorhanden.</div>`;
     domElements.historyList.appendChild(el);
-    domElements.clearHistoryBtn.style.display = 'none'; // Hide clear button if no history
+    if(domElements.clearHistoryBtn) domElements.clearHistoryBtn.style.display = 'none';
     return;
   }
 
-  // If historyItem exists, render it
-  const el = document.createElement("div");
-  el.className = "item";
-  const date = new Date(historyItem.timestamp).toLocaleString();
-  el.innerHTML = `
-    <div class="k">${date}</div>
-    <div class="v mono small" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.url}</div>
-    <div class="actions" style="margin-top: 5px;">
-      <button class="secondary small reanalyze-btn" data-url="${item.url}">Analysieren</button>
-      <!-- Individual delete button is not needed for single-item history -->
-    </div>
-  `;
-  domElements.historyList.appendChild(el);
+  history.forEach(historyItem => {
+    const el = document.createElement("div");
+    el.className = "item";
+    const date = new Date(historyItem.timestamp).toLocaleString();
+    el.innerHTML = `
+      <div class="k">${date}</div>
+      <div class="v mono small" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${historyItem.url}">${historyItem.url}</div>
+      <div class="actions" style="margin-top: 5px;">
+        <button class="secondary small reanalyze-btn" data-url="${historyItem.url}">Analysieren</button>
+        <button class="danger small delete-btn" data-timestamp="${historyItem.timestamp}">Löschen</button>
+      </div>
+    `;
+    domElements.historyList.appendChild(el);
 
-  // Attach event listener for re-analyze
-  el.querySelector('.reanalyze-btn').addEventListener('click', (event) => {
-    const url = event.target.dataset.url;
-    analyzeAndRender(url, domElements.llmMode.value); // Use domElements
+    const reanalyzeBtn = el.querySelector('.reanalyze-btn');
+    if(reanalyzeBtn) {
+      reanalyzeBtn.addEventListener('click', (event) => {
+        const url = event.target.dataset.url;
+        if(domElements.urlInput) domElements.urlInput.value = url;
+        analyzeAndRender(url, domElements.llmMode.value);
+      });
+    }
+
+    const deleteBtn = el.querySelector('.delete-btn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', (event) => {
+        const timestamp = event.target.dataset.timestamp;
+        deleteHistoryItem(timestamp);
+      });
+    }
   });
 
-  // Show clear history button if history exists
-  domElements.clearHistoryBtn.style.display = 'block'; 
+  if(domElements.clearHistoryBtn) domElements.clearHistoryBtn.style.display = 'block'; 
+  // Ensure the clear history button is red
+  if(domElements.clearHistoryBtn) domElements.clearHistoryBtn.classList.add('danger');
 }
+
+function saveAnalysis(data) {
+  let history = JSON.parse(localStorage.getItem('analysisHistory')) || [];
+  
+  history = history.filter(item => item.url !== data.url);
+
+  const analysisData = {
+    url: data.url,
+    timestamp: new Date().toISOString(),
+  };
+
+  history.unshift(analysisData);
+
+  localStorage.setItem('analysisHistory', JSON.stringify(history));
+}
+
 
 function setupEventListeners() {
-  domElements.analyzeBtn.addEventListener("click", async () => { // Use domElements
-    console.log("main.js: Analyze button clicked.");
-    const val = domElements.urlInput.value.trim(); // Use domElements
-    if (!val) { notify("Bitte eine URL eingeben.", true); return; }
-    await analyzeAndRender(val, domElements.llmMode.value); // Use domElements
-  });
+  if(domElements.analyzeBtn) {
+    domElements.analyzeBtn.addEventListener("click", async () => {
+      console.log("main.js: Analyze button clicked.");
+      const val = domElements.urlInput.value.trim();
+      if (!val) { notify("Bitte eine URL eingeben.", true); return; }
+      await analyzeAndRender(val, domElements.llmMode.value);
+    });
+  }
 
-  domElements.demoBtn.addEventListener("click", () => { // Use domElements
-    console.log("main.js: Demo button clicked.");
-    const pick = DEMO_LINKS[Math.floor(Math.random() * DEMO_LINKS.length)];
-    domElements.urlInput.value = pick; // Use domElements
-    domElements.analyzeBtn.click(); // Use domElements
-  });
+  if(domElements.demoBtn) {
+    domElements.demoBtn.addEventListener("click", () => {
+      console.log("main.js: Demo button clicked.");
+      const pick = DEMO_LINKS[Math.floor(Math.random() * DEMO_LINKS.length)];
+      domElements.urlInput.value = pick;
+      if(domElements.analyzeBtn) domElements.analyzeBtn.click();
+    });
+  }
 
-  domElements.resetBtn.addEventListener("click", () => { // Use domElements
-    console.log("main.js: Reset button clicked.");
-    domElements.urlInput.value = ""; // Use domElements
-    domElements.scoreVal.textContent = "–"; domElements.verdictBadge.textContent = "–"; domElements.verdictBadge.className = "badge ok"; // Use domElements
-    domElements.dimensionsGrid.innerHTML = ""; domElements.redirectList.innerHTML = ""; domElements.paramList.innerHTML = ""; // Use domElements
-    domElements.titleGuess.textContent = "–"; domElements.emotionVal.textContent = "–"; domElements.framingVal.textContent = "–"; domElements.biasVal.textContent = "–"; // Use domElements
-    domElements.whoisVal.textContent = "–"; domElements.pagerankVal.textContent = "–"; domElements.httpsVal.textContent = "–"; domElements.shortVal.textContent = "–"; domElements.patternVal.textContent = "–"; // Use domElements
-    notify("Zurückgesetzt.");
-  });
+  if(domElements.resetBtn) {
+    domElements.resetBtn.addEventListener("click", () => {
+      console.log("main.js: Reset button clicked.");
+      if(domElements.urlInput) domElements.urlInput.value = "";
+      if(domElements.scoreVal) domElements.scoreVal.textContent = "–"; 
+      if(domElements.verdictBadge) {
+        domElements.verdictBadge.textContent = "–";
+        domElements.verdictBadge.className = "badge ok";
+      }
+      if(domElements.dimensionsGrid) domElements.dimensionsGrid.innerHTML = ""; 
+      if(domElements.redirectList) domElements.redirectList.innerHTML = ""; 
+      if(domElements.paramList) domElements.paramList.innerHTML = "";
+      if(domElements.titleGuess) domElements.titleGuess.textContent = "–"; 
+      if(domElements.emotionVal) domElements.emotionVal.textContent = "–"; 
+      if(domElements.framingVal) domElements.framingVal.textContent = "–"; 
+      if(domElements.biasVal) domElements.biasVal.textContent = "–";
+      if(domElements.whoisVal) domElements.whoisVal.textContent = "–"; 
+      if(domElements.pagerankVal) domElements.pagerankVal.textContent = "–"; 
+      if(domElements.httpsVal) domElements.httpsVal.textContent = "–"; 
+      if(domElements.shortVal) domElements.shortVal.textContent = "–"; 
+      if(domElements.patternVal) domElements.patternVal.textContent = "–";
+      notify("Zurückgesetzt.");
+    });
+  }
 
-  domElements.exportJsonBtn.addEventListener("click", () => { // Use domElements
-    console.log("main.js: Export JSON button clicked.");
-    if (!lastData) { notify("Keine Daten zum Export.", true); return; }
-    exportJSON(lastData);
-  });
+  if(domElements.exportJsonBtn) {
+    domElements.exportJsonBtn.addEventListener("click", () => {
+      console.log("main.js: Export JSON button clicked.");
+      if (!lastData) { notify("Keine Daten zum Export.", true); return; }
+      exportJSON(lastData);
+    });
+  }
 
-  domElements.exportPdfBtn.addEventListener("click", () => { // Use domElements and call generatePdfReport
-    console.log("main.js: Export PDF button clicked.");
-    if (!lastData) { notify("Keine Daten zum Export.", true); return; }
-    generatePdfReport(lastData); // Correctly call generatePdfReport
-  });
+  if(domElements.exportPdfBtn) {
+    domElements.exportPdfBtn.addEventListener("click", () => {
+      console.log("main.js: Export PDF button clicked.");
+      if (!lastData) { notify("Keine Daten zum Export.", true); return; }
+      generatePdfReport(lastData);
+    });
+  }
 
-  // Clear history button listener removed as history is now single item and clearing it means removing the item
-  // The display logic in renderHistory handles hiding/showing it.
-  // domElements.clearHistoryBtn.addEventListener("click", () => { ... });
+  if(domElements.clearHistoryBtn) {
+    domElements.clearHistoryBtn.addEventListener("click", () => {
+      localStorage.removeItem('analysisHistory');
+      renderHistoryAndSetupListeners();
+      notify("Historie gelöscht.");
+    });
+  }
 }
-
 
 // Bootstrap: preload a demo
 window.addEventListener("load", () => {
   console.log("main.js: Window loaded.");
-  initDomElements(); // Initialize DOM elements
-  setupEventListeners(); // Setup event listeners AFTER DOM elements are initialized
-  initUI(); // Initialize UI components like radar chart
+  initDomElements();
+  setupEventListeners();
+  initUI();
   
-  // Load history on startup and render the single item or empty state
   renderHistoryAndSetupListeners(); 
 
-  // Analyze the demo link if input is empty or pre-filled
-  const urlToAnalyze = domElements.urlInput.value.trim(); // Use domElements
-  if (!urlToAnalyze) { // Only pre-fill and analyze if input is empty
-      domElements.urlInput.value = DEMO_LINKS[0]; // Use domElements
-      analyzeAndRender(DEMO_LINKS[0], domElements.llmMode.value); // Use domElements
-  } else {
-      // If there's already a value (e.g. from previous session), analyze it
-      analyzeAndRender(urlToAnalyze, domElements.llmMode.value); // Use domElements
+  const urlToAnalyze = domElements.urlInput ? domElements.urlInput.value.trim() : "";
+  if (!urlToAnalyze && domElements.urlInput) {
+      domElements.urlInput.value = DEMO_LINKS[0];
+      analyzeAndRender(DEMO_LINKS[0], domElements.llmMode.value);
+  } else if (urlToAnalyze) {
+      analyzeAndRender(urlToAnalyze, domElements.llmMode.value);
   }
 });

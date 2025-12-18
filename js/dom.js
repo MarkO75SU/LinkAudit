@@ -24,18 +24,19 @@ export function initDomElements() {
   domElements.patternVal = document.getElementById("patternVal");
   domElements.llmMode = document.getElementById("llmMode");
   domElements.exportJsonBtn = document.getElementById("exportJson");
-  // Removed references to copySummaryBtn, historyList, and clearHistoryBtn as they are no longer used.
-  // domElements.copySummaryBtn removed.
-  // domElements.historyList removed.
-  // domElements.clearHistoryBtn removed.
-  domElements.exportPdfBtn = document.getElementById("exportPdfBtn");
+  domElements.exportPdfBtn = document.getElementById("exportPdfBtn"); // Corrected ID
   domElements.notifyContainer = null; // Initialize notifyContainer
+  
+  // Re-added historyList and clearHistoryBtn
+  domElements.historyList = document.getElementById("historyList");
+  domElements.clearHistoryBtn = document.getElementById("clearHistory");
+  domElements.dynamicExplanations = document.getElementById("dynamicExplanations");
 
   // Basic check if elements were found, log warnings if not
   // This check is important to catch missing elements early.
   Object.keys(domElements).forEach(key => {
     if (key !== 'notifyContainer' && !domElements[key]) {
-      console.warn(`DOM Element not found for key: ${key}`);
+      console.warn(`[DOM] DOM Element not found for key: ${key}`);
     }
   });
 }

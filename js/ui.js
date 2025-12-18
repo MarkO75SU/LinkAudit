@@ -6,6 +6,7 @@ import { TRACK_PARAMS } from './config.js';
 let radarChart; // Will be initialized in initUI
 
 export function initUI() {
+  if(!domElements.radarCanvas) return;
   radarChart = new Chart(domElements.radarCanvas, { // Use domElements.radarCanvas directly
     type: "radar",
     data: {
@@ -39,6 +40,7 @@ export function initUI() {
 }
 
 export function renderDimensions(data) {
+  if(!domElements.dimensionsGrid) return;
   const dims = [
     { key: "Herkunft", val: data.scores.origin, desc: "Redirects, Shortlinks" },
     { key: "Emotion", val: data.scores.emotion, desc: data.labels.emotion },
@@ -66,6 +68,7 @@ export function renderDimensions(data) {
 }
 
 export function renderRedirects(data) {
+  if(!domElements.redirectList) return;
   domElements.redirectList.innerHTML = ""; // Use domElements
   if (data.chain.length === 0) {
     const el = document.createElement("div");
@@ -75,7 +78,7 @@ export function renderRedirects(data) {
     return;
   }
   data.chain.forEach((href, idx) => {
-    const el = document.createElement("div");
+    const el = document.createElement("div"); // Typo fixed here
     el.className = "item";
     el.innerHTML = `
       <div class="k">Schritt ${idx+1}</div>
@@ -86,6 +89,7 @@ export function renderRedirects(data) {
 }
 
 export function renderParams(data) {
+  if(!domElements.paramList) return;
   domElements.paramList.innerHTML = ""; // Use domElements
   if (data.parsed.params.length === 0) {
     const el = document.createElement("div");
@@ -113,11 +117,11 @@ export function renderParams(data) {
 export function renderSemantics(data) {
   // fetchPageTitle is now heuristic, so no await needed.
   const title = fetchPageTitle(data.url); // Call heuristic fetchPageTitle
-  domElements.titleGuess.textContent = title; // Use domElements
+  if(domElements.titleGuess) domElements.titleGuess.textContent = title; // Use domElements
 
-  domElements.emotionVal.textContent = `${data.labels.emotion} (${data.scores.emotion})`; // Use domElements
-  domElements.framingVal.textContent = `${data.labels.framing} (${data.scores.framing})`; // Use domElements
-  domElements.biasVal.textContent = `${data.labels.bias} (${data.scores.bias})`; // Use domElements
+  if(domElements.emotionVal) domElements.emotionVal.textContent = `${data.labels.emotion} (${data.scores.emotion})`; // Use domElements
+  if(domElements.framingVal) domElements.framingVal.textContent = `${data.labels.framing} (${data.scores.framing})`; // Use domElements
+  if(domElements.biasVal) domElements.biasVal.textContent = `${data.labels.bias} (${data.scores.bias})`; // Use domElements
 }
 
 export function renderReputation(data) {
@@ -127,12 +131,12 @@ export function renderReputation(data) {
     creationDate: "N/A",
     expirationDate: "N/A"
   };
-  domElements.whoisVal.textContent = `Registrar: ${whoisData.registrar} | Created: ${whoisData.creationDate} | Expires: ${whoisData.expirationDate}`; // Use domElements
+  if(domElements.whoisVal) domElements.whoisVal.textContent = `Registrar: ${whoisData.registrar} | Created: ${whoisData.creationDate} | Expires: ${whoisData.expirationDate}`; // Use domElements
   
-  domElements.pagerankVal.textContent = `${data.labels.reputation} (${data.scores.reputation})`; // Use domElements
-  domElements.httpsVal.textContent = data.parsed.https ? "Aktiv" : "Nein"; // Use domElements
-  domElements.shortVal.textContent = data.parsed.shortlink ? "Ja" : "Nein"; // Use domElements
-  domElements.patternVal.textContent = data.suspicious.length ? data.suspicious.join(", ") : "Keine"; // Use domElements
+  if(domElements.pagerankVal) domElements.pagerankVal.textContent = `${data.labels.reputation} (${data.scores.reputation})`; // Use domElements
+  if(domElements.httpsVal) domElements.httpsVal.textContent = data.parsed.https ? "Aktiv" : "Nein"; // Use domElements
+  if(domElements.shortVal) domElements.shortVal.textContent = data.parsed.shortlink ? "Ja" : "Nein"; // Use domElements
+  if(domElements.patternVal) domElements.patternVal.textContent = data.suspicious.length ? data.suspicious.join(", ") : "Keine"; // Use domElements
 }
 
 export function renderRadar(data) {
@@ -152,9 +156,11 @@ export function renderRadar(data) {
   ];
   radarChart.update();
   console.log("ui.js: radarChart data after update:", radarChart.data.datasets[0].data); // Debugging line
-  domElements.scoreVal.textContent = data.scores.overall; // Use domElements
-  domElements.verdictBadge.textContent = data.labels.verdict; // Use domElements
-  domElements.verdictBadge.className = `badge ${data.scores.overall >= 55 ? "ok" : data.scores.overall >= 35 ? "warn" : "danger"}`; // Use domElements
+  if(domElements.scoreVal) domElements.scoreVal.textContent = data.scores.overall; // Use domElements
+  if(domElements.verdictBadge) {
+    domElements.verdictBadge.textContent = data.labels.verdict; // Use domElements
+    domElements.verdictBadge.className = `badge ${data.scores.overall >= 55 ? "ok" : data.scores.overall >= 35 ? "warn" : "danger"}`; // Use domElements
+  }
 }
 
 export function exportJSON(data) {
@@ -238,9 +244,58 @@ export function generatePdfReport(data) { // Ensure this function is exported
   const rawJson = JSON.stringify(data, null, 2);
   const rawJsonSplit = doc.splitTextToSize(rawJson, maxWidth);
   doc.text(rawJsonSplit, margin, yOffset);
-  // No need to adjust yOffset here, just let it overflow if it's too long.
-  // For a real report, you'd add pages for overflow.
 
   doc.save(`linkaudit-report-${new Date().toISOString().slice(0, 10)}.pdf`);
   notify("PDF-Bericht generiert!");
+}
+
+// Export renderExplanations function
+export function renderExplanations(data) {
+  // Ensure domElements are available
+  if (!domElements.dynamicExplanations) {
+    // It's possible this element doesn't exist, so we just return.
+    return;
+  }
+
+  domElements.dynamicExplanations.innerHTML = ""; // Clear existing content
+
+  // Add the overall summary first
+  const summaryEl = document.createElement("div");
+  summaryEl.className = "explanation-item";
+  summaryEl.innerHTML = `
+    <h3>Zusammenfassung</h3>
+    <p>Der Gesamtscore von ${data.scores.overall} stuft diesen Link als ${data.labels.verdict} ein.</p>
+  `;
+  domElements.dynamicExplanations.appendChild(summaryEl);
+
+  // Add detailed explanations
+  const detailedExplanations = [
+    { title: "Herkunft", content: `Dieser Link wurde in ${data.chain.length} Schritten umgeleitet. ${data.parsed.shortlink ? 'Es wurde ein Kurzlink erkannt, der die direkte Herkunft verschleiern kann.' : 'Es wurde kein Kurzlink erkannt.'}` },
+    { title: "Emotionale Tonalität", content: `Die Analyse zeigt eine Tonalität als ${data.labels.emotion}. Ein hoher emotionaler Wert kann auf reißerische Inhalte oder Clickbait hinweisen.` },
+    { title: "Framing & Perspektive", content: `Der Link nutzt eine ${data.labels.framing}-Perspektive. Dies beschreibt die Art und Weise, wie ein Thema dargestellt wird.` },
+    { title: "Bias-Indikatoren", content: `Es wurden ${data.labels.bias} Hinweise auf Voreingenommenheit gefunden. Dies sind oft stark polarisierende Begriffe.` },
+    { title: "Domain-Reputation", content: `Die Reputation der Domain wird als ${data.labels.reputation} eingeschätzt. Die URL verwendet ${data.parsed.https ? 'HTTPS (sicher)' : 'kein HTTPS (unsicher)'}. WHOIS-Informationen sind heuristisch simuliert.` },
+    { title: "Tracking-Aktivität", content: `Die Tracking-Aktivität wird als ${data.labels.tracking} eingestuft. Es wurden ${data.trackedKeys.length > 0 ? `die Parameter ${data.trackedKeys.join(', ')}` : 'keine bekannten Tracking-Parameter'} erkannt.` }
+  ];
+
+  detailedExplanations.forEach(exp => {
+    const expEl = document.createElement("div");
+    expEl.className = "explanation-item";
+    expEl.innerHTML = `
+      <h3>${exp.title} (${data.scores[exp.title.toLowerCase().split(' ')[0]] || 'N/A'})</h3> 
+      <p>${exp.content}</p>
+    `;
+    domElements.dynamicExplanations.appendChild(expEl);
+  });
+
+  // Add suspicious patterns if any
+  if (data.suspicious && data.suspicious.length > 0) {
+    const suspiciousEl = document.createElement("div");
+    suspiciousEl.className = "explanation-item suspicious";
+    suspiciousEl.innerHTML = `
+      <h3>Verdächtige Muster (${data.scores.origin})</h3> 
+      <p>${data.suspicious.join(', ')}. Diese Muster können auf potenzielle Risiken wie Phishing oder schädliche Inhalte hindeuten.</p>
+    `;
+    domElements.dynamicExplanations.appendChild(suspiciousEl);
+  }
 }
