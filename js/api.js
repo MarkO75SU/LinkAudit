@@ -26,3 +26,32 @@ export function fetchPageTitle(urlStr) {
     return "Titel konnte nicht abgerufen werden"; // Standardwert bei Fehler
   }
 }
+
+/**
+ * Fetches the HTML content of a given URL using the backend proxy.
+ * @param {string} url - The URL to fetch.
+ * @returns {Promise<string>} The HTML content of the page.
+ */
+export async function fetchPageContent(url) {
+  try {
+    const response = await fetch('http://localhost:3000/api/fetch-content', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const htmlContent = await response.text();
+    return htmlContent;
+  } catch (error) {
+    console.error("Failed to fetch page content via proxy:", error);
+    notify(`Fehler beim Abrufen des Seiteninhalts: ${error.message}`, true);
+    throw error; // Re-throw to be handled by the caller
+  }
+}

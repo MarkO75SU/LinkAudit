@@ -22,70 +22,128 @@ export function httpsStatus(urlObj) {
   return urlObj.protocol === "https:";
 }
 
-export function scoreEmotion(title) {
-  const t = title.toLowerCase();
+/**
+ * Helper to calculate normalized keyword density.
+ * @param {string} text - The text to analyze.
+ * @param {string[]} keywords - Array of keywords.
+ * @returns {number} Density score (keywords per 1000 words).
+ */
+function calculateKeywordDensity(text, keywords) {
+  if (!text || text.length < 10) return 0; // Ignore very short texts for density calculation
+  const lowerText = text.toLowerCase();
+  let count = 0;
+  keywords.forEach(keyword => {
+    // Using regex for whole word matching and global search
+    const regex = new RegExp(`\b${keyword}\b`, 'g');
+    count += (lowerText.match(regex) || []).length;
+  });
+  // Normalize by text length (e.g., words per 1000 words)
+  const words = lowerText.split(/\s+/).filter(word => word.length > 0).length;
+  return words > 0 ? (count / words) * 1000 : 0; 
+}
+
+const MIN_TEXT_LENGTH_FOR_DENSITY = 200; // Minimum characters to use density-based scoring
+
+
+export function scoreEmotion(textInput) {
+  const t = textInput.toLowerCase();
   let e = 50; // baseline neutral
 
-  // More sensitive scoring for emotion
-  CLICKBAIT_WORDS.forEach(w => { if (t.includes(w)) e += 15; }); // Slightly less aggressive
-  POLARIZERS.forEach(w => { if (t.includes(w)) e += 10; });
+  if (t.length < MIN_TEXT_LENGTH_FOR_DENSITY) {
+      // For very short texts (like titles), use simpler includes logic or keep neutral
+      CLICKBAIT_WORDS.forEach(w => { if (t.includes(w)) e += 15; });
+      POLARIZERS.forEach(w => { if (t.includes(w)) e += 10; });
+  } else {
+      const clickbaitDensity = calculateKeywordDensity(t, CLICKBAIT_WORDS);
+      const polarizerDensity = calculateKeywordDensity(t, POLARIZERS);
+
+      e += clickbaitDensity * 0.5; // Example: 0.5 point per keyword per 1000 words
+      e += polarizerDensity * 0.3;
+  }
 
   // Penalize based on excessive caps or exclamation marks (heuristic)
-  if (t.match(/[A-Z]{3,}/) || t.includes('!!!') || t.includes('!!!')) e += 10; 
+  if (t.match(/[A-Z]{3,}/g)) e += (t.match(/[A-Z]{3,}/g) || []).length * 5;
+  if (t.includes('!!!')) e += (t.match(/!!!/g) || []).length * 10;
+  if (t.includes('?!')) e += (t.match(/\?!/g) || []).length * 5; // Check for interrobang
 
   e = Math.min(100, Math.max(0, e));
   let cls = "Neutral";
-  if (e >= 85) cls = "Extrem reißerisch"; // New category
+  if (e >= 85) cls = "Extrem reißerisch";
   else if (e >= 70) cls = "Alarmierend/reißerisch";
   else if (e >= 55) cls = "Euphorisch/aufgeladen";
-  else if (e <= 25) cls = "Sehr nüchtern/unterkühlt"; // New category
+  else if (e <= 25) cls = "Sehr nüchtern/unterkühlt";
   else if (e <= 40) cls = "Nüchtern/unterkühlt";
   return { value: e, label: cls };
 }
 
-export function scoreFraming(title) {
-  const t = title.toLowerCase();
+export function scoreFraming(textInput) {
+  const t = textInput.toLowerCase();
   let value = 40; // baseline neutral
   let label = "Sachlich";
 
-  // More sensitive scoring for framing
-  if (t.includes("gegen") || t.includes("vs") || t.includes("kampf") || t.includes("schlacht")) {
-    value = 80; label = "Wir vs. Die";
-  } else if (t.includes("enthüllt") || t.includes("geheimnis") || t.includes("beweist")) {
-    value = 75; label = "Autoritätsargument";
-  } else if (t.includes("schock") || t.includes("alarm") || t.includes("gefahr") || t.includes("warnung")) {
-    value = 90; label = "Angst-Dringlichkeit"; // More aggressive
-  } else if (t.includes("rettet") || t.includes("lösung") || t.includes("zukunft")) {
-    value = 70; label = "Heilsversprechen";
-  } else if (t.includes("experten") || t.includes("studie") || t.includes("wissenschaft")) {
-      value = 30; label = "Faktisch/Studiengestützt"; // New category
-  }
-  
-  // Penalize if title contains more than one framing pattern indicator
-  let detectedFrames = 0;
-  if (t.includes("gegen") || t.includes("vs")) detectedFrames++;
-  if (t.includes("enthüllt") || t.includes("geheimnis")) detectedFrames++;
-  if (t.includes("schock") || t.includes("alarm")) detectedFrames++;
-  if (t.includes("rettet") || t.includes("lösung")) detectedFrames++;
-  if (detectedFrames > 1) value += 10;
+  if (t.length < MIN_TEXT_LENGTH_FOR_DENSITY) {
+    // Simpler logic for short texts
+    if (t.includes("gegen") || t.includes("vs") || t.includes("kampf") || t.includes("schlacht")) {
+      value = 80; label = "Wir vs. Die";
+    } else if (t.includes("enthüllt") || t.includes("geheimnis") || t.includes("beweist")) {
+      value = 75; label = "Autoritätsargument";
+    } else if (t.includes("schock") || t.includes("alarm") || t.includes("gefahr") || t.includes("warnung")) {
+      value = 90; label = "Angst-Dringlichkeit";
+    } else if (t.includes("rettet") || t.includes("lösung") || t.includes("zukunft")) {
+      value = 70; label = "Heilsversprechen";
+    } else if (t.includes("experten") || t.includes("studie") || t.includes("wissenschaft")) {
+        value = 30; label = "Faktisch/Studiengestützt";
+    }
+  } else {
+    // Density-based logic for longer texts
+    let wirVsDieDensity = calculateKeywordDensity(t, ["gegen", "vs", "kampf", "schlacht"]);
+    let authorityDensity = calculateKeywordDensity(t, ["enthüllt", "geheimnis", "beweist", "experten", "studie", "wissenschaft"]);
+    let fearUrgencyDensity = calculateKeywordDensity(t, ["schock", "alarm", "gefahr", "warnung", "krise", "katastrophe"]);
+    let promiseDensity = calculateKeywordDensity(t, ["rettet", "lösung", "zukunft", "chance", "hoffnung"]);
+    let factualDensity = calculateKeywordDensity(t, ["fakt", "studie", "wissenschaftlich", "ergebnisse", "daten"]);
 
+
+    if (fearUrgencyDensity > 1) { value = Math.max(value, 50 + fearUrgencyDensity * 3); label = "Angst-Dringlichkeit"; }
+    else if (wirVsDieDensity > 1) { value = Math.max(value, 40 + wirVsDieDensity * 2); label = "Wir vs. Die"; }
+    else if (authorityDensity > 1) { value = Math.max(value, 30 + authorityDensity * 1.5); label = "Autoritätsargument"; }
+    else if (promiseDensity > 1) { value = Math.max(value, 40 + promiseDensity * 1.5); label = "Heilsversprechen"; }
+    else if (factualDensity > 1) { value = 30; label = "Faktisch/Studiengestützt"; } // Strong factual density makes it less framed
+    
+    // Slight penalty if mixed framing types are detected but none dominate
+    if ([wirVsDieDensity, authorityDensity, fearUrgencyDensity, promiseDensity, factualDensity].filter(d => d > 0.5).length > 2) {
+        value += 5; 
+        if (value > 70) label = "Gemischtes Framing"; // New label for mixed
+    }
+  }
 
   value = Math.min(100, Math.max(0, value));
   return { value, label };
 }
 
-export function scoreBias(title) {
-  const t = title.toLowerCase();
+export function scoreBias(textInput) {
+  const t = textInput.toLowerCase();
   let b = 40; // baseline neutral
-  POLARIZERS.forEach(w => { if (t.includes(w)) b += 15; }); // More aggressive penalty
-  CLICKBAIT_WORDS.forEach(w => { if (t.includes(w)) b += 5; });
 
-  // Penalize use of strong adjectives/adverbs (heuristic)
-  if (t.includes('nur') || t.includes('immer') || t.includes('nie') || t.includes('absolut')) b += 10;
+  if (t.length < MIN_TEXT_LENGTH_FOR_DENSITY) {
+    // Simpler logic for short texts
+    POLARIZERS.forEach(w => { if (t.includes(w)) b += 15; });
+    CLICKBAIT_WORDS.forEach(w => { if (t.includes(w)) b += 5; });
+  } else {
+    const polarizerDensity = calculateKeywordDensity(t, POLARIZERS);
+    const clickbaitDensity = calculateKeywordDensity(t, CLICKBAIT_WORDS);
+    const strongAdverbDensity = calculateKeywordDensity(t, ['nur', 'immer', 'nie', 'absolut', 'extrem', 'massiv', 'ausschließlich', 'eindeutig']); // Expanded list
+
+    b += polarizerDensity * 0.8;
+    b += clickbaitDensity * 0.2;
+    b += strongAdverbDensity * 0.5;
+  }
+
+  // Penalize based on excessive use of opinionated/subjective language markers
+  if (t.includes('meiner meinung nach') || t.includes('wir glauben')) b += 5;
 
   b = Math.min(100, Math.max(0, b));
   let label = "Gering";
-  if (b >= 85) label = "Sehr Stark"; // New category
+  if (b >= 85) label = "Sehr Stark";
   else if (b >= 70) label = "Stark";
   else if (b >= 50) label = "Mittel";
   return { value: b, label };

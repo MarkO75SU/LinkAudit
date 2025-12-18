@@ -2,7 +2,7 @@
 import { DEMO_LINKS } from './config.js';
 import { initDomElements, domElements, notify } from './dom.js'; // Import domElements and initDomElements
 import { initUI, renderRadar, renderDimensions, renderRedirects, renderParams, renderSemantics, renderReputation, exportJSON, renderExplanations, generatePdfReport } from './ui.js'; 
-import { fetchPageTitle } from './api.js'; // Corrected import for fetchPageTitle
+import { fetchPageTitle, fetchPageContent } from './api.js'; // Corrected import for fetchPageTitle and added fetchPageContent
 import {
   parseUrl, extractParams, detectShortlink, httpsStatus,
   scoreEmotion, scoreFraming, scoreBias, scoreTracking,
@@ -24,10 +24,35 @@ async function aggregate(urlStr, mode="light") {
   const isShort = detectShortlink(u.hostname);
   const isHttps = httpsStatus(u);
 
+  let pageText = ""; // Variable to store extracted text
+  
+  // Determine the primary text for semantic analysis
+  let textForSemanticAnalysis = "";
+
+  if (mode === "full") {
+    try {
+      pageText = await fetchPageContent(urlStr); // Backend now returns plain text directly
+      console.log("main.js: Extracted page text (full mode) - first 500 chars:", pageText.substring(0, 500) + "...");
+      textForSemanticAnalysis = pageText; // Use full text for semantic analysis in full mode
+    } catch (e) {
+      console.error("main.js: Error fetching page content in full mode:", e);
+      notify("Fehler beim Abrufen des Seiteninhalts für Analyse.", true);
+      // Fallback to light mode or handle as appropriate, for now use title
+    }
+  }
+
   const title = fetchPageTitle(urlStr); 
-  const emo = scoreEmotion(title);
-  const fra = scoreFraming(title);
-  const bia = scoreBias(title);
+
+  // If pageText is not available (e.g., light mode or fetch failed), use the title for semantic analysis
+  if (!textForSemanticAnalysis) {
+    textForSemanticAnalysis = title;
+  }
+
+  // Use textForSemanticAnalysis for emotion, framing, and bias scoring
+  const emo = scoreEmotion(textForSemanticAnalysis);
+  const fra = scoreFraming(textForSemanticAnalysis);
+  const bia = scoreBias(textForSemanticAnalysis);
+
   const rep = scoreReputation(u.hostname, isHttps, isShort); 
   const trk = scoreTracking(params);
 
@@ -64,7 +89,8 @@ async function aggregate(urlStr, mode="light") {
     chain: origins,
     suspicious: patt,
     titleGuess: title,
-    trackedKeys: trk.tracked
+    trackedKeys: trk.tracked,
+    pageText: pageText // Returning extracted text
   };
 }
 
@@ -146,7 +172,6 @@ function renderHistoryAndSetupListeners() {
   });
 
   if(domElements.clearHistoryBtn) domElements.clearHistoryBtn.style.display = 'block'; 
-  // Ensure the clear history button is red
   if(domElements.clearHistoryBtn) domElements.clearHistoryBtn.classList.add('danger');
 }
 
